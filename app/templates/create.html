@@ -1,0 +1,37 @@
+{% extends 'base.html' %}
+
+{% block content %}
+    <h1>{% block title %} Add a New Message {% endblock %}</h1>
+    <form method="post">
+        <label for="host_address">Host Receive Address</label>
+        <br>
+        <input type="text" name="host_address"
+               placeholder="Host bitcoin address"
+               value="{{ request.form['host_address'] }}"></input>
+        <br>
+
+
+        <label for="renter_address">Renter Send Address</label>
+        <br>
+        <input type="text" name="renter_address"
+               placeholder="Renter bitcoin address"
+               value="{{ request.form['renter_address'] }}"></input>
+        <br>
+
+
+        <label for="start_date">Start Date</label>
+        <br>
+        <input type="text" name="start_date"
+               placeholder="Start Date"
+               value="{{ request.form['start_date'] }}"></input>
+        <br>
+
+        <label for="end_date">End Date</label>
+        <br>
+        <input type="text" name="end_date"
+               placeholder="End Date"
+               value="{{ request.form['end_date'] }}"></input>
+        <br>
+        <button type="submit">Submit</button>
+    </form>
+{% endblock %}

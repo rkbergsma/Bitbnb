@@ -1,0 +1,26 @@
+{% extends 'base.html' %}
+
+{% block content %}
+    <h1>{% block title %} Messages {% endblock %}</h1>
+    {% for message in messages %}
+        <div class='message'>
+            <h3>{{ message['title'] }}</h3>
+            <p>{{ message['content'] }}</p>
+        </div>
+    {% endfor %}
+{% endblock %}
+
+
+<!--
+<html lang="en">
+	<head>
+		<meta charset="UTF-8">
+		<title>Bitcoin App</title>
+	</head>
+	<body>
+		<h1>Hello Bitcoin!</h1>
+		<p>View available listings</p>
+		<p>Create new listing</p>
+	</body>
+</html>
+-->
