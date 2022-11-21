@@ -7,16 +7,26 @@ from shared.Op import OP_CODE_NAMES
 if __name__ == '__main__':   
     from_rpc = RpcSocket({'wallet': 'alice_wallet'})
 
-    refund_addr = 'mq3QcisdaBYuKXeha7D4G8vGbcfcLSF6DG'
+    refund_addr = 'mhanwFa9pSKxcvNbaDbQDP9XmmQU9CqwvE'
     refund_h160 = decode_base58(refund_addr)
-    print(refund_h160.hex())
+
+    owner_addr = 'mikwD2HAUWFnRbQGNvPfaxcq89RDY2Lr3t'
+    owner_h160 = decode_base58(owner_addr)
 
     redeem_script = Script([
         0x76,   #op_dup
         0xa9,   #op_hash160
         refund_h160,   #<pubkeyhash>
+        0x87,   #op_equal
+        0x63,   #op_if
+        0xac,   #op_checksig
+        0x67,   #op_else
+        0x76,   #op_dup
+        0xa9,   #op_hash160
+        owner_h160,  #<pubkeyhash>
         0x88,   #op_equalverify
-        0xac    #op_checksig
+        0xac,   #op_checksig
+        0x68    #op_endif
     ])
     
     serial_script = redeem_script.raw_serialize()

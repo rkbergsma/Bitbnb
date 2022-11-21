@@ -113,7 +113,7 @@ class Tx:
         self.sign_input(rpc, i, privateKey, redeem_script)
         return True
 
-    def sign_input(self, rpc, input_index, private_key, redeem_script):
+    def sign_input(self, rpc, input_index, private_key, redeem_script=None):
         z = self.sig_hash(rpc, input_index, redeem_script)
         der = private_key.sign(z).der()                     # create the signature
         sig = der + SIGHASH_ALL.to_bytes(1, 'big')
