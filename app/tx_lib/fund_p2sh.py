@@ -2,13 +2,24 @@ from lib.rpc import RpcSocket
 from shared.Tx import Tx, TxOut
 from shared.Script import Script
 from shared.Utility import decode_base58, little_endian_to_int, hash160
+from shared.Op import OP_CODE_NAMES
 
 if __name__ == '__main__':   
     from_rpc = RpcSocket({'wallet': 'alice_wallet'})
 
-    redeem_script = Script([0x76, 0x93, 0x93, 0x57, 0x87])
+    refund_addr = 'mq3QcisdaBYuKXeha7D4G8vGbcfcLSF6DG'
+    refund_h160 = decode_base58(refund_addr)
+    print(refund_h160.hex())
+
+    redeem_script = Script([
+        0x76,   #op_dup
+        0xa9,   #op_hash160
+        refund_h160,   #<pubkeyhash>
+        0x88,   #op_equalverify
+        0xac    #op_checksig
+    ])
+    
     serial_script = redeem_script.raw_serialize()
-    print(serial_script)
     hash_script = hash160(serial_script)
     p2sh_script = Script.p2sh_script(hash_script)
     print(p2sh_script)

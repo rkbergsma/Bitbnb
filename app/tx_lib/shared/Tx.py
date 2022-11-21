@@ -100,21 +100,28 @@ class Tx:
 
     def sign(self, rpc):
         for i in range(len(self.tx_ins)):
-            # print(str(self.tx_ins[i].prev_tx.hex()))
-            # print(self.tx_ins[i].prev_index)
             secret = str(self.tx_ins[i].private_key)
             secret_int = int(secret,16)
-            private_key = PrivateKey(secret_int)
-            self.sign_input(rpc, i, private_key)
+            privateKey = PrivateKey(secret_int)
+            self.sign_input(rpc, i, privateKey)
         return True
 
+    def signP2SH(self, rpc, i, redeem_script, address_used):
+        private_key = rpc.get_private_key(address_used)
+        secret_int = int(private_key,16)
+        privateKey = PrivateKey(secret_int)
+        self.sign_input(rpc, i, privateKey, redeem_script)
+        return True
 
-    def sign_input(self, rpc, input_index, private_key):
-        z = self.sig_hash(rpc, input_index)
+    def sign_input(self, rpc, input_index, private_key, redeem_script):
+        z = self.sig_hash(rpc, input_index, redeem_script)
         der = private_key.sign(z).der()                     # create the signature
         sig = der + SIGHASH_ALL.to_bytes(1, 'big')
         sec = private_key.public_key.sec()
-        script_sig = Script([sig, sec])                     # create the signature script
+        if (redeem_script):
+            script_sig = Script([sig, sec, redeem_script.raw_serialize()])                     # create the signature script
+        else:
+            script_sig = Script([sig, sec])
         self.tx_ins[input_index].script_sig = script_sig    # sign the transaction's input
         return self.verify_input(rpc, input_index)
 
