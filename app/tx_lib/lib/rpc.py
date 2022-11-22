@@ -149,3 +149,6 @@ class RpcSocket:
         raw_tx = transaction.serialize().hex()
         self.call('sendrawtransaction', raw_tx)
         return transaction.id()
+
+    def get_new_address(self):
+        return self.call('getnewaddress', ['', 'legacy'])
