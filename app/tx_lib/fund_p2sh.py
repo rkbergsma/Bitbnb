@@ -1,17 +1,19 @@
 from lib.rpc import RpcSocket
 from shared.Tx import Tx, TxOut
 from shared.Script import Script
-from shared.Utility import decode_base58, little_endian_to_int, hash160
-from shared.Op import OP_CODE_NAMES
+from shared.Utility import decode_base58, int_to_little_endian, hash160, encode_varint
+from shared.Op import OP_CODE_NAMES, encode_num
 
 if __name__ == '__main__':   
     from_rpc = RpcSocket({'wallet': 'alice_wallet'})
 
-    refund_addr = 'mhanwFa9pSKxcvNbaDbQDP9XmmQU9CqwvE'
-    refund_h160 = decode_base58(refund_addr)
+    refund_addr = 'mwY8KzZqft6Z7QuvEP4XpJoY2vHyUhfy33'
+    owner_addr = 'n3SHuhpN4gSpn5RJvajUL4jau7d6idNNJw'
+    valid_height = 2407730
 
-    owner_addr = 'mikwD2HAUWFnRbQGNvPfaxcq89RDY2Lr3t'
+    refund_h160 = decode_base58(refund_addr)
     owner_h160 = decode_base58(owner_addr)
+    valid_after = encode_num(valid_height)
 
     redeem_script = Script([
         0x76,   #op_dup
@@ -21,6 +23,9 @@ if __name__ == '__main__':
         0x63,   #op_if
         0xac,   #op_checksig
         0x67,   #op_else
+        valid_after,   #<can_redeem>
+        0xb1,   #op_checklocktimeverify
+        0x75,   #op_drop
         0x76,   #op_dup
         0xa9,   #op_hash160
         owner_h160,  #<pubkeyhash>
