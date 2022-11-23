@@ -10,7 +10,7 @@ if __name__ == '__main__':
 
     # from owner's wallet
     to_rpc = RpcSocket({'wallet': 'bob_wallet'})
-    utxo_to_redeem = to_rpc.lookup_transaction(txid_with_p2sh).tx_outs[0]           # lookup utxo by txid                          
+    utxo_to_redeem = to_rpc.lookup_transaction(txid_with_p2sh).tx_outs[0]           # lookup p2sh utxo by txid                          
     utxo_amount = utxo_to_redeem.amount                                             # get the amount that can be redeemed
     bitcoin_miner_fee = 500                                                         # subtract out the miner fees
     redeem_amount = utxo_amount - bitcoin_miner_fee                                 # calculate actual redeem amount

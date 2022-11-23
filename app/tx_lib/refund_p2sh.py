@@ -10,7 +10,7 @@ if __name__ == '__main__':
 
     # from renter's wallet
     to_rpc = RpcSocket({'wallet': 'alice_wallet'})
-    utxo_to_refund = to_rpc.lookup_transaction(txid_with_p2sh).tx_outs[0]   # lookup utxo by txid
+    utxo_to_refund = to_rpc.lookup_transaction(txid_with_p2sh).tx_outs[0]   # lookup p2sh utxo by txid
     utxo_amount = utxo_to_refund.amount                                     # get the amount that can be refunded
     bitcoin_miner_fee = 500                                                 # subtract out the miner fees
     refund_amount = utxo_amount - bitcoin_miner_fee                         # calculate actual refund amount
