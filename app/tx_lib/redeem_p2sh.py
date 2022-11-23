@@ -4,7 +4,7 @@ from shared.Tx import Tx, TxIn
 if __name__ == '__main__':   
     to_rpc = RpcSocket({'wallet': 'bob_wallet'})
 
-    txid_with_p2sh = '215d88e19811aefb0d476207154a662c6dec597cca69c7a4a57a85f5f76f2644'
+    txid_with_p2sh = '0bc2ff5c2fd0a366209cabbd7d728c4fce2691ac38c30fbd22071847e3ff7909'
     address = 'mvNR1qGaMR7jdmSsvFQf6nsXo7bb1ofn2M'
     serial_script = '76a9145850a5cfd6254cd20b00493a1fd063c166043adc8763ac67034abd24b17576a914a2ec72b722b3840c7f74a38a1a7482f91e5852fa88ac68'
     locktime = 2407754
