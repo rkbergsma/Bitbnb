@@ -1,4 +1,3 @@
-from io import BytesIO
 from shared.Tx import Tx, TxOut, TxIn
 from shared.Script import Script
 from Bitbnb import RedeemScript

@@ -1,5 +1,4 @@
 from lib.rpc import RpcSocket
-from shared.Tx import Tx, TxIn
 from Bitbnb.Tx_Factory import Tx_Factory
 from Bitbnb.RedeemScript import RedeemScript
 
