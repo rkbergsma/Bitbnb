@@ -2,6 +2,7 @@ from io import BytesIO
 from shared.PrivateKey import PrivateKey
 from shared.Utility import hash256, int_to_little_endian, little_endian_to_int, read_varint, encode_varint
 from shared.Script import Script
+from Bitbnb.RedeemScript import RedeemScript
 
 SIGHASH_ALL = 1
 
@@ -107,11 +108,15 @@ class Tx:
             self.sign_input(rpc, i, privateKey)
         return True
 
-    def signP2SH(self, rpc, i, raw_serial_script, address_used):
+    def signP2SH(self, rpc, i:int, redeem_script: RedeemScript, testnet=False):
+        address_used = redeem_script.get_refund_address(testnet)
+        raw_serial_script = redeem_script.serialize()
+        serial_script_bytes = bytes.fromhex(raw_serial_script)
+        print(address_used)
         private_key = rpc.get_private_key(address_used)
         secret_int = int(private_key,16)
         privateKey = PrivateKey(secret_int)
-        self.sign_input(rpc, i, privateKey, raw_serial_script)
+        self.sign_input(rpc, i, privateKey, serial_script_bytes)
         return True
 
     def sign_input(self, rpc, input_index, private_key, raw_serial_script=None):

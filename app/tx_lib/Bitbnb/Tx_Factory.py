@@ -13,8 +13,13 @@ class Tx_Factory:
         locktime = 0
         return Tx(1, funding_tx_ins, [tx_out, change_tx_out], locktime, True) 
 
-    def make_refund(self):
-        return False
+    @classmethod
+    def make_refund(cls, txid_to_refund: str, refund_txout: TxOut):   
+        tx_out_index_to_refund = 0
+        tx_in = TxIn(bytes.fromhex(txid_to_refund), tx_out_index_to_refund)
+        locktime = 0
+        return Tx(1, [tx_in], [refund_txout], locktime, True) 
 
-    def make_redeem(self):
+    @classmethod
+    def make_redeem(cls):
         return False
