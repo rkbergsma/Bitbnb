@@ -108,15 +108,12 @@ class Tx:
             self.sign_input(rpc, i, privateKey)
         return True
 
-    def signP2SH(self, rpc, i:int, redeem_script: RedeemScript, testnet=False):
-        address_used = redeem_script.get_refund_address(testnet)
-        raw_serial_script = redeem_script.serialize()
-        serial_script_bytes = bytes.fromhex(raw_serial_script)
-        print(address_used)
-        private_key = rpc.get_private_key(address_used)
+    def signP2SH(self, rpc, serial_redeem_script: str, address_in_p2sh: str, testnet=False):
+        serial_script_bytes = bytes.fromhex(serial_redeem_script)
+        private_key = rpc.get_private_key(address_in_p2sh)
         secret_int = int(private_key,16)
         privateKey = PrivateKey(secret_int)
-        self.sign_input(rpc, i, privateKey, serial_script_bytes)
+        self.sign_input(rpc, 0, privateKey, serial_script_bytes)
         return True
 
     def sign_input(self, rpc, input_index, private_key, raw_serial_script=None):

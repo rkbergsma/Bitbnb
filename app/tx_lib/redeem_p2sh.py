@@ -1,26 +1,28 @@
 from lib.rpc import RpcSocket
 from shared.Tx import Tx, TxIn
+from Bitbnb.Tx_Factory import Tx_Factory
+from Bitbnb.RedeemScript import RedeemScript
 
 if __name__ == '__main__':   
-    to_rpc = RpcSocket({'wallet': 'bob_wallet'})
-
-    txid_with_p2sh = '0bc2ff5c2fd0a366209cabbd7d728c4fce2691ac38c30fbd22071847e3ff7909'
-    address = 'mvNR1qGaMR7jdmSsvFQf6nsXo7bb1ofn2M'
+    txid_with_p2sh = '2356af6c295417b7ab195665d18c4e138fe648a67a510fdae7f4f7351d3023c4'
     serial_script = '76a9145850a5cfd6254cd20b00493a1fd063c166043adc8763ac67034abd24b17576a914a2ec72b722b3840c7f74a38a1a7482f91e5852fa88ac68'
-    locktime = 2407754
-    fee = 500
 
-    raw_serial_script = bytes.fromhex(serial_script)
-    tx_with_p2sh = to_rpc.lookup_transaction(txid_with_p2sh)
-    utxo_to_redeem = tx_with_p2sh.tx_outs[0]
-    utxo_amount = utxo_to_redeem.amount
-    redeem_amount = utxo_amount - fee
-    tx_out_index_to_redeem = 0
-    tx_in = TxIn(bytes.fromhex(txid_with_p2sh), tx_out_index_to_redeem)
-    tx_out = to_rpc.get_txout(redeem_amount)
-    transaction = Tx(1, [tx_in], [tx_out], locktime, True)  
-    transaction.signP2SH(to_rpc, 0, raw_serial_script, address)
+    # from owner's wallet
+    to_rpc = RpcSocket({'wallet': 'bob_wallet'})
+    utxo_to_redeem = to_rpc.lookup_transaction(txid_with_p2sh).tx_outs[0]           # lookup utxo by txid                          
+    utxo_amount = utxo_to_redeem.amount                                             # get the amount that can be redeemed
+    bitcoin_miner_fee = 500                                                         # subtract out the miner fees
+    redeem_amount = utxo_amount - bitcoin_miner_fee                                 # calculate actual redeem amount
+    tx_out = to_rpc.get_txout(redeem_amount)                                        # build txout with redeem amount and new address
+
+    # executed by Bitbnb app
+    redeem_script = RedeemScript.make_from_serial(serial_script)                    # build redeem_script from serial string
+    transaction = Tx_Factory.make_redeem(redeem_script, txid_with_p2sh, tx_out)     # construct redeem transaction
     
+    # executed by renter's wallet
+    address_used = redeem_script.get_owner_address(testnet=True)
+    raw_serial_script = redeem_script.serialize()
+    transaction.signP2SH(to_rpc, raw_serial_script, address_used)                   # sign p2sh input of funding of redeem transaction
     print(transaction)
     print(transaction.serialize().hex())
     tx_id = to_rpc.send_transaction(transaction)

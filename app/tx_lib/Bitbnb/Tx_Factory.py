@@ -21,5 +21,8 @@ class Tx_Factory:
         return Tx(1, [tx_in], [refund_txout], locktime, True) 
 
     @classmethod
-    def make_redeem(cls):
-        return False
+    def make_redeem(cls, redeem_script: RedeemScript, txid_to_redeem: str, redeem_txout: TxOut):
+        tx_out_index_to_redeem = 0
+        tx_in = TxIn(bytes.fromhex(txid_to_redeem), tx_out_index_to_redeem)
+        locktime = redeem_script.get_owner_locktime()
+        return Tx(1, [tx_in], [redeem_txout], locktime, True)  
