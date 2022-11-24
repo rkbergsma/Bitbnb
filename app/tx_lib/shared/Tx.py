@@ -2,6 +2,7 @@ from io import BytesIO
 from shared.PrivateKey import PrivateKey
 from shared.Utility import hash256, int_to_little_endian, little_endian_to_int, read_varint, encode_varint
 from shared.Script import Script
+from Bitbnb.RedeemScript import RedeemScript
 
 SIGHASH_ALL = 1
 
@@ -54,14 +55,16 @@ class Tx:
             value_of_outputs += tx_out.amount
         return value_of_inputs - value_of_outputs
 
-    def sig_hash(self, rpc, input_index, redeem_script=None):
+    def sig_hash(self, rpc, input_index, raw_serial_script=None):
         modified_tx = int_to_little_endian(self.version, 4)
         modified_tx += encode_varint(len(self.tx_ins))
         # empty ScriptSig from all inputs.  Replace ScriptSig with ScriptPubKey for just input being signed
         for i, tx_in in enumerate(self.tx_ins): 
             if i == input_index:
-                if redeem_script:
-                    script_sig = redeem_script
+                if raw_serial_script:
+                    total = len(raw_serial_script)
+                    encoded_serial_script =  encode_varint(total) + raw_serial_script
+                    script_sig = Script.parse(BytesIO(encoded_serial_script))
                 else:
                     script_sig = tx_in.lookup_script_pubkey(rpc, self.testnet)
             else:
@@ -83,7 +86,6 @@ class Tx:
             cmd = tx_in.script_sig.cmds[-1]
             raw_redeem = encode_varint(len(cmd)) + cmd;
             redeem_script = Script.parse(BytesIO(raw_redeem))
-            print(redeem_script)
         else:
             redeem_script = None
         z = self.sig_hash(input_index, redeem_script)    
@@ -100,21 +102,29 @@ class Tx:
 
     def sign(self, rpc):
         for i in range(len(self.tx_ins)):
-            # print(str(self.tx_ins[i].prev_tx.hex()))
-            # print(self.tx_ins[i].prev_index)
             secret = str(self.tx_ins[i].private_key)
             secret_int = int(secret,16)
-            private_key = PrivateKey(secret_int)
-            self.sign_input(rpc, i, private_key)
+            privateKey = PrivateKey(secret_int)
+            self.sign_input(rpc, i, privateKey)
         return True
 
+    def signP2SH(self, rpc, serial_redeem_script: str, address_in_p2sh: str, testnet=False):
+        serial_script_bytes = bytes.fromhex(serial_redeem_script)
+        private_key = rpc.get_private_key(address_in_p2sh)
+        secret_int = int(private_key,16)
+        privateKey = PrivateKey(secret_int)
+        self.sign_input(rpc, 0, privateKey, serial_script_bytes)
+        return True
 
-    def sign_input(self, rpc, input_index, private_key):
-        z = self.sig_hash(rpc, input_index)
+    def sign_input(self, rpc, input_index, private_key, raw_serial_script=None):
+        z = self.sig_hash(rpc, input_index, raw_serial_script)
         der = private_key.sign(z).der()                     # create the signature
         sig = der + SIGHASH_ALL.to_bytes(1, 'big')
         sec = private_key.public_key.sec()
-        script_sig = Script([sig, sec])                     # create the signature script
+        if (raw_serial_script):
+            script_sig = Script([sig, sec, raw_serial_script])                     # create the signature script
+        else:
+            script_sig = Script([sig, sec])
         self.tx_ins[input_index].script_sig = script_sig    # sign the transaction's input
         return self.verify_input(rpc, input_index)
 
@@ -134,7 +144,7 @@ class Tx:
 
 
 class TxIn:
-    def __init__(self, prev_tx, prev_index, script_sig=None, sequence=0xffffffff):
+    def __init__(self, prev_tx, prev_index, script_sig=None, sequence=0xfffffffe):
         self.prev_tx = prev_tx
         self.prev_index = prev_index
         if script_sig is None:

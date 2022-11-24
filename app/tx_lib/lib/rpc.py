@@ -120,6 +120,11 @@ class RpcSocket:
 
         return all_utxos
 
+    def get_private_key(self, address):
+        encoded_key = self.call('dumpprivkey', address)
+        private_key = decode_address(encoded_key)
+        return private_key
+
     def lookup_transaction(self, txid):
         raw_tx = self.call('getrawtransaction', txid)
         raw_tx_bytes = bytes.fromhex(raw_tx)
@@ -144,3 +149,6 @@ class RpcSocket:
         raw_tx = transaction.serialize().hex()
         self.call('sendrawtransaction', raw_tx)
         return transaction.id()
+
+    def get_new_address(self):
+        return self.call('getnewaddress', ['', 'legacy'])
