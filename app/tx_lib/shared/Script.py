@@ -5,6 +5,18 @@ from shared.Op import OP_CODE_FUNCTIONS, OP_CODE_NAMES, op_hash160, op_equal, op
 
 LOGGER = getLogger(__name__)
 
+def p2pkh_script(h160):
+    # OP_DUP, OP_HASH160, h160, OP_EQUALVERIFY, OP_CHECKSIG
+    return Script([0x76, 0xa9, h160, 0x88, 0xac])
+
+def p2sh_script(h160):
+    # OP_HASH160, h160, OP_EQUAL
+    return Script([0xa9, h160, 0x87])
+
+def p2wpkh_script(h160):
+    # OP_0, h160
+    return Script([0x00, h160])
+
 class Script:
     def __init__(self, cmds=None):
         if cmds is None:
@@ -55,7 +67,7 @@ class Script:
         total = len(result)
         return encode_varint(total) + result
                 
-    def evaluate(self, z):
+    def evaluate(self, z, witness):
         # create a copy as we may need to add to this list if we have a
         # RedeemScript
         cmds = self.cmds[:]
@@ -103,7 +115,11 @@ class Script:
                     redeem_script = encode_varint(len(cmd)) + cmd  # prepend length of redeem script so it can be parsed
                     stream = BytesIO(redeem_script)
                     cmds.extend(Script.parse(stream).cmds) # Extend the cmd set with the parsed commands from the RedeemScript
-                stack.append(cmd)
+                if len(stack) == 2 and stack[0] == b'' and len(stack[1]) == 20:     # This is where we extend the witness items onto the stack
+                    h160 = stack.pop()
+                    stack.pop()
+                    cmds.extend(witness)
+                    cmds.extend(Script.p2pkh_script(h160).cmds)
         if len(stack) == 0:
             return False
         if stack.pop() == b'':
@@ -137,18 +153,7 @@ class Script:
         if count != script_length:
             raise SyntaxError('parsing script failed')
         return cls(cmds)
-
-    @classmethod
-    def p2pkh_script(cls, h160):
-        # OP_DUP, OP_HASH160, h160, OP_EQUALVERIFY, OP_CHECKSIG
-        return cls([0x76, 0xa9, h160, 0x88, 0xac])
-
-    @classmethod
-    def p2sh_script(cls, h160):
-        # OP_HASH160, h160, OP_EQUAL
-        return cls([0xa9, h160, 0x87])
-    
-    
+  
     def is_p2pkh(self):
         '''Returns whether this follows the
         OP_DUP OP_HASH160 <20 byte hash> OP_EQUALVERIFY OP_CHECKSIG pattern.'''
@@ -163,3 +168,7 @@ class Script:
         return len(self.cmds) == 3 and self.cmds[0] == 0xa9 \
             and type(self.cmds[1]) == bytes and len(self.cmds[1]) == 20 \
             and self.cmds[2] == 0x87
+
+    def is_p2wpkh(self):
+        # Returns whether this follows the pattern OP_0 <20 bytes hash>
+        return len(self.cmds) == 2 and self.cmds[0] == 0x00 and type(self.cmds[1]) == bytes and len(self.cmds[1]) == 20

@@ -1,8 +1,7 @@
 from io import BytesIO
 from shared.PrivateKey import PrivateKey
 from shared.Utility import hash256, int_to_little_endian, little_endian_to_int, read_varint, encode_varint
-from shared.Script import Script
-from Bitbnb.RedeemScript import RedeemScript
+from shared.Script import Script, p2wpkh_script, p2pkh_script
 
 SIGHASH_ALL = 1
 
@@ -39,9 +38,34 @@ class Tx:
         return self.hash().hex()
 
     def hash(self):
-        return hash256(self.serialize())[::-1]
+        return hash256(self.serialize_legacy())[::-1]
 
     def serialize(self):
+        if self.segwit:
+            return self.serialize_segwit()
+        else:
+            return self.serialize_legacy()
+    
+    def serialize_segwit(self):
+        result = int_to_little_endian(self.version, 4)
+        result += b'\x00\x01'                                   # Add the segwit marker and flag
+        result += encode_varint(len(self.tx_ins))
+        for tx_in in self.tx_ins:
+            result += tx_in.serialize()
+        result += encode_varint(len(self.tx_outs))
+        for tx_out in self.tx_outs:
+            result += tx_out.serialize()
+        for tx_in in self.tx_ins:                               # The serialize the witness field
+            result += int_to_little_endian(len(tx_in.witness), 1)
+            for item in tx_in.witness:
+                if type(item) == int:
+                    result += int_to_little_endian(item, 1)     # The item is a command so encode it as a single byte
+                else:
+                    result += encode_varint(len(item)) + item   # The item is a byte stream so prepend he length to it
+        result += int_to_little_endian(self.locktime, 4)
+        return result
+
+    def serialize_legacy(self):
         result = int_to_little_endian(self.version, 4)
         result += encode_varint(len(self.tx_ins))
         for tx_in in self.tx_ins:
@@ -85,18 +109,74 @@ class Tx:
         h256 = hash256(modified_tx)
         return int.from_bytes(h256, 'big')
 
+    def sig_hash_bip143(self, rpc, input_index, redeem_script=None, witness_script=None):
+        '''Returns the integer representation of the hash that needs to get signed for index input_index'''
+        tx_in = self.tx_ins[input_index]
+        # per BIP143 spec
+        s = int_to_little_endian(self.version, 4)
+        s += self.hash_prevouts() + self.hash_sequence()
+        s += tx_in.prev_tx[::-1] + int_to_little_endian(tx_in.prev_index, 4)
+        if witness_script:
+            script_code = witness_script.serialize()
+        elif redeem_script:
+            script_code = p2pkh_script(redeem_script.cmds[1]).serialize()
+        else:
+            script_sig = tx_in.lookup_script_pubkey(rpc, self.testnet)
+            script_code = p2pkh_script(script_sig.cmds[1]).serialize()
+        s += script_code
+        s += int_to_little_endian(tx_in.lookup_value(rpc), 8)
+        s += int_to_little_endian(tx_in.sequence, 4)
+        s += self.hash_outputs()
+        s += int_to_little_endian(self.locktime, 4)
+        s += int_to_little_endian(SIGHASH_ALL, 4)
+        return int.from_bytes(hash256(s), 'big')
+
+    def hash_prevouts(self):
+        if self._hash_prevouts is None:
+            all_prevouts = b''
+            all_sequence = b''
+            for tx_in in self.tx_ins:
+                all_prevouts += tx_in.prev_tx[::-1] + int_to_little_endian(tx_in.prev_index, 4)
+                all_sequence += int_to_little_endian(tx_in.sequence, 4)
+            self._hash_prevouts = hash256(all_prevouts)
+            self._hash_sequence = hash256(all_sequence)
+        return self._hash_prevouts
+
+    def hash_sequence(self):
+        if self._hash_sequence is None:
+            self.hash_prevouts()  # this should calculate self._hash_prevouts
+        return self._hash_sequence
+
+    def hash_outputs(self):
+        if self._hash_outputs is None:
+            all_outputs = b''
+            for tx_out in self.tx_outs:
+                all_outputs += tx_out.serialize()
+            self._hash_outputs = hash256(all_outputs)
+        return self._hash_outputs
+
     def verify_input(self, rpc, input_index):
         tx_in = self.tx_ins[input_index]
         script_pubkey = tx_in.lookup_script_pubkey(rpc, self.testnet)   # fetch for the pubkey of the prev transaction
         if script_pubkey.is_p2sh():
-            cmd = tx_in.script_sig.cmds[-1]
+            cmd = tx_in.script_sig.cmds[-1]                             # the last command has to be the redeem script to trigger
             raw_redeem = encode_varint(len(cmd)) + cmd;
-            redeem_script = Script.parse(BytesIO(raw_redeem))
+            redeem_script = Script.parse(BytesIO(raw_redeem))           # the RedeemScript might be p2wpkh or p2wsh
+            if redeem_script.is_p2wpkh():
+                z = self.sig_hash_bip143(input_index, redeem_script)
+                witness = tx_in.witness
+            else:
+                z = self.sig_hash(rpc, input_index, redeem_script)
+                witness = None
         else:
-            redeem_script = None
-        z = self.sig_hash(input_index, redeem_script)    
+            if script_pubkey.is_p2wpkh():
+                z = self.sig_hash_bip143(rpc, input_index)
+                witness = tx_in.witness
+            else:
+                z = self.sig_hash(rpc, input_index)
+                witness = None    
         combined_script = tx_in.script_sig + script_pubkey
-        return combined_script.evaluate(z)
+        return combined_script.evaluate(z, witness)
 
     def verify(self):
         if self.fee() < 0:
@@ -124,14 +204,14 @@ class Tx:
 
     def sign_input(self, rpc, input_index, private_key, raw_serial_script=None):
         z = self.sig_hash(rpc, input_index, raw_serial_script)
-        der = private_key.sign(z).der()                     # create the signature
+        der = private_key.sign(z).der()                                             # create the signature
         sig = der + SIGHASH_ALL.to_bytes(1, 'big')
         sec = private_key.public_key.sec()
         if (raw_serial_script):
             script_sig = Script([sig, sec, raw_serial_script])                     # create the signature script
         else:
             script_sig = Script([sig, sec])
-        self.tx_ins[input_index].script_sig = script_sig    # sign the transaction's input
+        self.tx_ins[input_index].script_sig = script_sig                           # sign the transaction's input
         return self.verify_input(rpc, input_index)
 
     @classmethod
@@ -214,6 +294,11 @@ class TxIn:
     def lookup_script_pubkey(self, rpc, testnet=False):
         tx = rpc.lookup_transaction(self.prev_tx.hex())
         return tx.tx_outs[self.prev_index].script_pubkey
+
+    def lookup_value(self, rpc, testnet=False):
+        # Get the outpoint value by looking up the tx hash Returns the amount in satoshi
+        tx = rpc.lookup_transaction(self.prev_tx.hex())     # use self.fetch_tx to get the transaction
+        return tx.tx_outs[self.prev_index].amount  #return the amount at the tx out
 
     @classmethod
     def parse(cls, stream):
