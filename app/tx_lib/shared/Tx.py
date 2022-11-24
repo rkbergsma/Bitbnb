@@ -7,12 +7,18 @@ from Bitbnb.RedeemScript import RedeemScript
 SIGHASH_ALL = 1
 
 class Tx:
-    def __init__(self, version, tx_ins, tx_outs, locktime, testnet=False):
+    command = b'tx'
+
+    def __init__(self, version, tx_ins, tx_outs, locktime, testnet=False, segwit=False):
         self.version = version
         self.tx_ins = tx_ins
         self.tx_outs = tx_outs
         self.locktime = locktime
         self.testnet = testnet
+        self.segwit = segwit
+        self._hash_prevouts = None
+        self._hash_sequence = None
+        self._hash_outputs = None
     
     def __repr__(self):
         tx_ins = ''
@@ -130,14 +136,51 @@ class Tx:
 
     @classmethod
     def parse(cls, stream, testnet=False):
+        stream.read(4)                          # read off the first 4 bytes (version) so we can look at the fifth
+        if stream.read(1) == b'/x00':           # if fifth bytes is 0, this is a segwit transaction
+            parse_method = cls.parse_segwit
+        else:
+            parse_method = cls.parse_legacy
+        stream.seek(-5,1)                       # reset the stream
+        return parse_method(stream, testnet=testnet)
+
+    @classmethod
+    def parse_segwit(cls, stream, testnet=False):
         version = little_endian_to_int(stream.read(4))
+        marker_flag = stream.read(2)            # read marker and flag 
+        if marker_flag != b'\x00\x01':          
+            raise RuntimeError("The maker and flag {} do not indicate this is a segwit transaction".format(marker_flag))
         num_inputs = read_varint(stream)
         inputs = []
-        for input in range(num_inputs):
+        for _ in range(num_inputs):
             inputs.append(TxIn.parse(stream))
         outputs = []
         num_outputs = read_varint(stream)
-        for ouptut in range(num_outputs):
+        for _ in range(num_outputs):
+            outputs.append(TxOut.parse(stream))
+        for tx_in in inputs:                    # assume there is a set of witness items for each input I guess?
+            num_items = read_varint(stream)
+            items = []
+            for _ in range(num_items):
+                item_len = read_varint(stream)
+                if item_len == 0:
+                    items.append(0)
+                else:
+                    items.append(stream.read(item_len))
+            tx_in.witness = items               # yup you can add properties to classes like this apparently.  
+        locktime = little_endian_to_int(stream.read(4))
+        return cls(version, inputs, outputs, locktime, testnet=testnet, segwit=True)
+
+    @classmethod
+    def parse_legacy(cls, stream, testnet=False):
+        version = little_endian_to_int(stream.read(4))
+        num_inputs = read_varint(stream)
+        inputs = []
+        for _ in range(num_inputs):
+            inputs.append(TxIn.parse(stream))
+        outputs = []
+        num_outputs = read_varint(stream)
+        for _ in range(num_outputs):
             outputs.append(TxOut.parse(stream))
         locktime = little_endian_to_int(stream.read(4))
         return cls(version, inputs, outputs, locktime, testnet=testnet)
