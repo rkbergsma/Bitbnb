@@ -15,7 +15,6 @@ if __name__ == '__main__':
     tx_out_change = from_rpc.get_txout(change_amount)
 
     transaction = Tx(1, all_txins, [tx_out, tx_out_change], 0, testnet=True, segwit=True)  
-    print(transaction)
     transaction.sign(from_rpc, testnet = True)
     print(transaction)
     print(transaction.serialize().hex())
