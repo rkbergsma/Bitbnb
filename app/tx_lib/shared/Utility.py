@@ -94,10 +94,10 @@ def h160_to_p2sh_address(h160, testnet=False):
 def h160_to_p2wpkh_address(h160, testnet=False):
     base32 = convertbits(h160, 8, 5)
     base32.insert(0,0)
-    checksum = bech32_create_checksum('bc', base32)
-    base32 += checksum
     if testnet:
         hrp = 'tb'
     else:
         hrp = 'bc'
+    checksum = bech32_create_checksum(hrp, base32)
+    base32 += checksum
     return hrp + "1" +"".join([CHARSET[d] for d in base32])

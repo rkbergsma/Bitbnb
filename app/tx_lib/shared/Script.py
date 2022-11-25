@@ -119,7 +119,7 @@ class Script:
                     h160 = stack.pop()
                     stack.pop()
                     cmds.extend(witness)
-                    cmds.extend(Script.p2pkh_script(h160).cmds)
+                    cmds.extend(p2pkh_script(h160).cmds)
         if len(stack) == 0:
             return False
         if stack.pop() == b'':

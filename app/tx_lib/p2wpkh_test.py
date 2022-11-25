@@ -3,8 +3,8 @@ from shared.Tx import Tx
 from shared.Utility import decode_bech32
 
 if __name__ == '__main__':
-    from_rpc = RpcSocket({'wallet': 'tn_wallet'})
-    to_rpc = RpcSocket({'wallet':'bob_wallet'})
+    from_rpc = RpcSocket({'wallet': 'alice_wallet'})
+    to_rpc = RpcSocket({'wallet':'tn_wallet'})
 
     all_txins = from_rpc.get_all_utxos()
     all_amount = from_rpc.get_total_unspent_sats()
@@ -14,9 +14,9 @@ if __name__ == '__main__':
     tx_out = to_rpc.get_txout(send_amount)
     tx_out_change = from_rpc.get_txout(change_amount)
 
-    transaction = Tx(1, all_txins, [tx_out, tx_out_change], 0, True, True)  
+    transaction = Tx(1, all_txins, [tx_out, tx_out_change], 0, testnet=True, segwit=True)  
     print(transaction)
-    transaction.sign(from_rpc)
+    transaction.sign(from_rpc, testnet = True)
     print(transaction)
     print(transaction.serialize().hex())
-    #tx_id = from_rpc.send_transaction(transaction)
+    tx_id = from_rpc.send_transaction(transaction)

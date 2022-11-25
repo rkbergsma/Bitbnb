@@ -1,7 +1,7 @@
 from io import BytesIO
 from shared.PrivateKey import PrivateKey
-from shared.Utility import hash256, int_to_little_endian, little_endian_to_int, read_varint, encode_varint
-from shared.Script import Script, p2wpkh_script, p2pkh_script
+from shared.Utility import hash256, int_to_little_endian, little_endian_to_int, read_varint, encode_varint, h160_to_p2pkh_address, h160_to_p2wpkh_address
+from shared.Script import Script, p2pkh_script
 
 SIGHASH_ALL = 1
 
@@ -186,38 +186,53 @@ class Tx:
                 return False
         return True
 
-    def sign(self, rpc):
+    def sign(self, rpc, testnet=False, sh_address=None):
         for i in range(len(self.tx_ins)):
-            secret = str(self.tx_ins[i].private_key)
-            secret_int = int(secret,16)
-            privateKey = PrivateKey(secret_int)
+            script_pubkey = self.tx_ins[i].lookup_script_pubkey(rpc, testnet)
+            if script_pubkey.is_p2pkh():
+                h160 = script_pubkey.cmds[2]
+                address = h160_to_p2pkh_address(h160, testnet)
+            elif script_pubkey.is_p2wpkh():
+                h160 = script_pubkey.cmds[1]
+                address = h160_to_p2wpkh_address(h160, testnet)
+                print(address)
+            elif script_pubkey.is_p2sh():
+                address = sh_address
+            privateKey = rpc.get_private_key(address)
             self.sign_input(rpc, i, privateKey)
         return True
 
     def signP2SH(self, rpc, serial_redeem_script: str, address_in_p2sh: str, testnet=False):
         serial_script_bytes = bytes.fromhex(serial_redeem_script)
-        private_key = rpc.get_private_key(address_in_p2sh)
-        secret_int = int(private_key,16)
-        privateKey = PrivateKey(secret_int)
+        privateKey = rpc.get_private_key(address_in_p2sh)
         self.sign_input(rpc, 0, privateKey, serial_script_bytes)
         return True
 
     def sign_input(self, rpc, input_index, private_key, raw_serial_script=None):
-        z = self.sig_hash(rpc, input_index, raw_serial_script)
-        der = private_key.sign(z).der()                                             # create the signature
-        sig = der + SIGHASH_ALL.to_bytes(1, 'big')
-        sec = private_key.public_key.sec()
-        if (raw_serial_script):
-            script_sig = Script([sig, sec, raw_serial_script])                     # create the signature script
-        else:
+        tx_in = self.tx_ins[input_index]
+        script_pubkey = tx_in.lookup_script_pubkey(rpc, self.testnet)
+        if script_pubkey.is_p2sh():
+            script_sig = Script([sig, sec, raw_serial_script])
+        elif script_pubkey.is_p2pkh():
+            z = self.sig_hash(rpc, input_index, raw_serial_script)
+            der = private_key.sign(z).der()                                             # create the signature
+            sig = der + SIGHASH_ALL.to_bytes(1, 'big')
+            sec = private_key.public_key.sec()
             script_sig = Script([sig, sec])
+        elif script_pubkey.is_p2wpkh():
+            z = self.sig_hash_bip143(rpc, input_index)
+            der = private_key.sign(z).der()                                             # create the signature
+            sig = der + SIGHASH_ALL.to_bytes(1, 'big')
+            sec = private_key.public_key.sec()
+            script_sig = Script([])
+            self.tx_ins[input_index].witness = [sig, sec]
         self.tx_ins[input_index].script_sig = script_sig                           # sign the transaction's input
         return self.verify_input(rpc, input_index)
 
     @classmethod
     def parse(cls, stream, testnet=False):
         stream.read(4)                          # read off the first 4 bytes (version) so we can look at the fifth
-        if stream.read(1) == b'/x00':           # if fifth bytes is 0, this is a segwit transaction
+        if stream.read(1) == b'\x00':           # if fifth bytes is 0, this is a segwit transaction
             parse_method = cls.parse_segwit
         else:
             parse_method = cls.parse_legacy

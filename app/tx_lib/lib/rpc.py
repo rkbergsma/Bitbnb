@@ -4,6 +4,7 @@ from .helper import decode_address
 from shared.Tx import Tx, TxIn, TxOut
 from shared.Utility import decode_base58, decode_bech32
 from shared.Script import p2pkh_script, p2wpkh_script
+from shared.PrivateKey import PrivateKey
 
 class RpcSocket:
     ''' Basic implementation of a JSON-RPC interface. '''
@@ -109,11 +110,11 @@ class RpcSocket:
 
             raw_tx_hex = self.call('getrawtransaction', utxo['txid'])
             raw_tx_bytes = bytes.fromhex(raw_tx_hex)
-            tx = Tx.parse(BytesIO(raw_tx_bytes))
+            tx = Tx.parse(BytesIO(raw_tx_bytes), testnet=True)
             pubkey = tx.tx_outs[vout].script_pubkey
 
             tx_in = TxIn(prev_tx, vout)
-            tx_in.setPrevTxInfo(private_key, pubkey, utxo['amount'])
+            # tx_in.setPrevTxInfo(private_key, pubkey, utxo['amount'])
             all_utxos.append(tx_in)
 
         return all_utxos
@@ -121,7 +122,8 @@ class RpcSocket:
     def get_private_key(self, address):
         encoded_key = self.call('dumpprivkey', address)
         private_key = decode_address(encoded_key)
-        return private_key
+        secret_int = int(private_key,16)
+        return PrivateKey(secret_int)
 
     def lookup_transaction(self, txid):
         raw_tx = self.call('getrawtransaction', txid)
