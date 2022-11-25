@@ -195,7 +195,6 @@ class Tx:
             elif script_pubkey.is_p2wpkh():
                 h160 = script_pubkey.cmds[1]
                 address = h160_to_p2wpkh_address(h160, testnet)
-                print(address)
             elif script_pubkey.is_p2sh():
                 address = sh_address
             privateKey = rpc.get_private_key(address)
