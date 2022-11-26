@@ -38,6 +38,8 @@ def hash160(s):
     '''sha256 followed by ripemd160'''
     return hashlib.new('ripemd160', hashlib.sha256(s).digest()).digest()
 
+def sha256(s):
+    return hashlib.sha256(s).digest()
 
 def hash256(s):
     '''two rounds of sha256'''

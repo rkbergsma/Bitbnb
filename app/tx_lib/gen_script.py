@@ -10,7 +10,7 @@ if __name__ == '__main__':
 
     refund_addr = from_rpc.get_new_address(legacy)
     owner_addr = to_rpc.get_new_address(legacy)
-    valid_height = 2407754
+    valid_height = 2408467
 
     if legacy == False:
         refund_h160 = decode_bech32(refund_addr)

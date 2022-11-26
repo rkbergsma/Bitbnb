@@ -2,6 +2,7 @@ from io import BytesIO
 from shared.PrivateKey import PrivateKey
 from shared.Utility import hash256, int_to_little_endian, little_endian_to_int, read_varint, encode_varint, h160_to_p2pkh_address, h160_to_p2wpkh_address
 from shared.Script import Script, p2pkh_script
+from Bitbnb.RedeemScript import RedeemScript
 
 SIGHASH_ALL = 1
 
@@ -160,10 +161,16 @@ class Tx:
         script_pubkey = tx_in.lookup_script_pubkey(rpc, self.testnet)   # fetch for the pubkey of the prev transaction
         if script_pubkey.is_p2sh():
             cmd = tx_in.script_sig.cmds[-1]                             # the last command has to be the redeem script to trigger
-            raw_redeem = encode_varint(len(cmd)) + cmd;
+            raw_redeem = encode_varint(len(cmd)) + cmd
             redeem_script = Script.parse(BytesIO(raw_redeem))           # the RedeemScript might be p2wpkh or p2wsh
             if redeem_script.is_p2wpkh():
-                z = self.sig_hash_bip143(input_index, redeem_script)
+                z = self.sig_hash_bip143(rpc, input_index, redeem_script)
+                witness = tx_in.witness
+            elif redeem_script.is_p2wsh():
+                cmd = tx_in.witness[-1]
+                raw_witness = encode_varint(len(cmd)) + cmd
+                witness_script = Script.parse(BytesIO(raw_witness))
+                z = self.sig_hash_bip143(rpc, input_index, witness_script=witness_script)
                 witness = tx_in.witness
             else:
                 z = self.sig_hash(rpc, input_index, redeem_script)
@@ -171,6 +178,12 @@ class Tx:
         else:
             if script_pubkey.is_p2wpkh():
                 z = self.sig_hash_bip143(rpc, input_index)
+                witness = tx_in.witness
+            elif script_pubkey.is_p2wsh():
+                cmd = tx_in.witness[-1]
+                raw_witness = encode_varint(len(cmd)) + cmd
+                witness_script = Script.parse(BytesIO(raw_witness))
+                z = self.sig_hash_bip143(rpc, input_index, witness_script=witness_script)
                 witness = tx_in.witness
             else:
                 z = self.sig_hash(rpc, input_index)
@@ -186,8 +199,9 @@ class Tx:
                 return False
         return True
 
-    def sign(self, rpc, testnet=False, sh_address=None):
+    def sign(self, rpc, testnet=False, sh_address=None, serial_redeem_script=None):
         for i in range(len(self.tx_ins)):
+            serial_script_bytes = None
             script_pubkey = self.tx_ins[i].lookup_script_pubkey(rpc, testnet)
             if script_pubkey.is_p2pkh():
                 h160 = script_pubkey.cmds[2]
@@ -197,35 +211,53 @@ class Tx:
                 address = h160_to_p2wpkh_address(h160, testnet)
             elif script_pubkey.is_p2sh():
                 address = sh_address
+                serial_script_bytes = bytes.fromhex(serial_redeem_script)
+            elif script_pubkey.is_p2wsh():
+                address = sh_address
+                serial_script_bytes = bytes.fromhex(serial_redeem_script)
             privateKey = rpc.get_private_key(address)
-            self.sign_input(rpc, i, privateKey)
+            self.sign_input(rpc, i, privateKey, serial_script_bytes)
         return True
 
-    def signP2SH(self, rpc, serial_redeem_script: str, address_in_p2sh: str, testnet=False):
-        serial_script_bytes = bytes.fromhex(serial_redeem_script)
-        privateKey = rpc.get_private_key(address_in_p2sh)
-        self.sign_input(rpc, 0, privateKey, serial_script_bytes)
-        return True
+    # def signP2SH(self, rpc, serial_redeem_script: str, address_in_p2sh: str, testnet=False):
+    #     serial_script_bytes = bytes.fromhex(serial_redeem_script)
+    #     privateKey = rpc.get_private_key(address_in_p2sh)
+    #     self.sign_input(rpc, 0, privateKey, serial_script_bytes)
+    #     return True
 
     def sign_input(self, rpc, input_index, private_key, raw_serial_script=None):
         tx_in = self.tx_ins[input_index]
         script_pubkey = tx_in.lookup_script_pubkey(rpc, self.testnet)
         if script_pubkey.is_p2sh():
-            script_sig = Script([sig, sec, raw_serial_script])
-        elif script_pubkey.is_p2pkh():
             z = self.sig_hash(rpc, input_index, raw_serial_script)
             der = private_key.sign(z).der()                                             # create the signature
             sig = der + SIGHASH_ALL.to_bytes(1, 'big')
             sec = private_key.public_key.sec()
-            script_sig = Script([sig, sec])
+            scriptSig = Script([sig, sec, raw_serial_script])
+        elif script_pubkey.is_p2pkh():
+            z = self.sig_hash(rpc, input_index)
+            der = private_key.sign(z).der()                                             # create the signature
+            sig = der + SIGHASH_ALL.to_bytes(1, 'big')
+            sec = private_key.public_key.sec()
+            scriptSig = Script([sig, sec])
         elif script_pubkey.is_p2wpkh():
             z = self.sig_hash_bip143(rpc, input_index)
             der = private_key.sign(z).der()                                             # create the signature
             sig = der + SIGHASH_ALL.to_bytes(1, 'big')
             sec = private_key.public_key.sec()
-            script_sig = Script([])
+            scriptSig = Script([])
             self.tx_ins[input_index].witness = [sig, sec]
-        self.tx_ins[input_index].script_sig = script_sig                           # sign the transaction's input
+        elif script_pubkey.is_p2wsh():
+            total = len(raw_serial_script)
+            encoded_serial_script =  encode_varint(total) + raw_serial_script
+            witness_script = Script.parse(BytesIO(encoded_serial_script))
+            z = self.sig_hash_bip143(rpc, input_index, witness_script=witness_script)
+            der = private_key.sign(z).der()                                             # create the signature
+            sig = der + SIGHASH_ALL.to_bytes(1, 'big')
+            sec = private_key.public_key.sec()
+            scriptSig = Script([])
+            self.tx_ins[input_index].witness = [sig, sec, raw_serial_script]
+        self.tx_ins[input_index].script_sig = scriptSig                           # sign the transaction's input
         return self.verify_input(rpc, input_index)
 
     @classmethod

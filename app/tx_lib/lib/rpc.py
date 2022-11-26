@@ -99,7 +99,7 @@ class RpcSocket:
         
         return True
 
-    def get_all_utxos(self):
+    def get_all_utxos(self, testnet=False):
         all_utxos = []
         unspent_json = self.call('listunspent')
         for utxo in unspent_json:
@@ -110,7 +110,7 @@ class RpcSocket:
 
             raw_tx_hex = self.call('getrawtransaction', utxo['txid'])
             raw_tx_bytes = bytes.fromhex(raw_tx_hex)
-            tx = Tx.parse(BytesIO(raw_tx_bytes), testnet=True)
+            tx = Tx.parse(BytesIO(raw_tx_bytes), testnet)
             pubkey = tx.tx_outs[vout].script_pubkey
 
             tx_in = TxIn(prev_tx, vout)
@@ -138,7 +138,7 @@ class RpcSocket:
             amount += float(utxo['amount'])
         return int(amount * 100000000)
 
-    def get_txout(self, amount, legacy=False, address=None):
+    def get_txout(self, amount: int, legacy: bool = False, address: str = None):
         if address == None:
             address = self.get_new_address(legacy)
             if legacy == False:

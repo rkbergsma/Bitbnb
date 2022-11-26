@@ -3,10 +3,10 @@ from shared.Tx import Tx
 from shared.Utility import decode_bech32
 
 if __name__ == '__main__':
-    from_rpc = RpcSocket({'wallet': 'alice_wallet'})
-    to_rpc = RpcSocket({'wallet':'tn_wallet'})
+    from_rpc = RpcSocket({'wallet': 'tn_wallet'})
+    to_rpc = RpcSocket({'wallet':'alice_wallet'})
 
-    all_txins = from_rpc.get_all_utxos()
+    all_txins = from_rpc.get_all_utxos(testnet=True)
     all_amount = from_rpc.get_total_unspent_sats()
     fee = 500
     send_amount = int(all_amount * 0.8)
