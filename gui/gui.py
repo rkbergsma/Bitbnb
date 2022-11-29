@@ -2,6 +2,7 @@
 
 import PySimpleGUI as sg
 
+listings = ["post 1 details","post 2 details","post 3 details","post 4 details","post 5 details","post 6 details"]
 
 def create_new_listing_window():
     layout = [[sg.Text("Enter receive bech32 address: ")],
@@ -37,17 +38,19 @@ def create_new_listing_window():
             break
     window.close()
 
-def browse_posts_window():
-    layout = [[sg.Text("post 1: post details ")],
+def browse_posts_window(prevValue):
+    currentPostList = prevValue
+    layout = [[sg.Text(listings[currentPostList])],
             [sg.Button("Book", key="book1")],
-            [sg.Text("post 2: post details ")],
+            [sg.Text(listings[currentPostList+1])],
             [sg.Button("Book", key="book2")],
-            [sg.Text("post 3: post details ")],
+            [sg.Text(listings[currentPostList+2])],
             [sg.Button("Book", key="book3")],
-            [sg.Text("post 4: post details ")],
+            [sg.Text(listings[currentPostList+3])],
             [sg.Button("Book", key="book4")],
-            [sg.Button("OK")]]
+            [sg.Button("Next")],[sg.Button("Cancel")]]
     
+    currentPostList = prevValue + 4
     # Create the window
     window = sg.Window("Browse Listings", layout)
 
@@ -56,9 +59,13 @@ def browse_posts_window():
         event, values = window.read()
         # End program if user closes window or
         # presses the OK button
-        if event == "OK" or event == sg.WIN_CLOSED:
+        if event == "Cancel" or event == sg.WIN_CLOSED:
             window.close()
             main()
+            break
+        if event == "Next":
+            window.close()
+            browse_posts_window(currentPostList)
             break
         if event == "Exit" or event == sg.WIN_CLOSED:
             window.close()
@@ -83,7 +90,7 @@ def main():
             break
         if event == "browse_posts":
             window.close()
-            browse_posts_window()
+            browse_posts_window(0)
             break
 #    window.close()
 
