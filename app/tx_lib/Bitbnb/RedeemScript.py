@@ -1,7 +1,7 @@
 from io import BytesIO
 from shared.Script import Script
-from shared.Utility import h160_to_p2pkh_address, decode_base58, encode_varint
-from shared.Op import encode_num, decode_num, hash160
+from shared.Utility import h160_to_p2pkh_address, decode_base58, encode_varint, sha256, hash160
+from shared.Op import encode_num, decode_num
 
 class RedeemScript:
     def __init__(self, redeem_script:Script):
@@ -59,4 +59,8 @@ class RedeemScript:
     def hash160(self) -> str:
         serial_script = bytes.fromhex(self.serialize())
         return hash160(serial_script).hex()
+
+    def sha256(self) -> str:
+        serial_script = bytes.fromhex(self.serialize())
+        return sha256(serial_script).hex()
     

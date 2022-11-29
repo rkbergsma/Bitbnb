@@ -1,18 +1,24 @@
 from lib.rpc import RpcSocket
-from shared.Utility import decode_base58
+from shared.Utility import decode_base58, decode_bech32
 from shared.Op import encode_num
 from shared.Script import Script
 
 if __name__ == '__main__':
+    legacy = False
     from_rpc = RpcSocket({'wallet': 'alice_wallet'})
     to_rpc = RpcSocket({'wallet': 'bob_wallet'})
 
-    refund_addr = from_rpc.get_new_address()
-    owner_addr = to_rpc.get_new_address()
-    valid_height = 2407754
+    refund_addr = from_rpc.get_new_address(legacy)
+    owner_addr = to_rpc.get_new_address(legacy)
+    valid_height = 2408467
 
-    refund_h160 = decode_base58(refund_addr)
-    owner_h160 = decode_base58(owner_addr)
+    if legacy == False:
+        refund_h160 = decode_bech32(refund_addr)
+        owner_h160 = decode_bech32(owner_addr)
+    else:
+        refund_h160 = decode_base58(refund_addr)
+        owner_h160 = decode_base58(owner_addr)
+    
     valid_after = encode_num(valid_height)
 
     redeem_script = Script([

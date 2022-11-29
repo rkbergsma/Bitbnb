@@ -1,11 +1,10 @@
 from io import BytesIO
 import json, requests, uuid
-
 from .helper import decode_address
-
 from shared.Tx import Tx, TxIn, TxOut
-from shared.Utility import decode_base58
-from shared.Script import Script
+from shared.Utility import decode_base58, decode_bech32
+from shared.Script import p2pkh_script, p2wpkh_script
+from shared.PrivateKey import PrivateKey
 
 class RpcSocket:
     ''' Basic implementation of a JSON-RPC interface. '''
@@ -100,7 +99,7 @@ class RpcSocket:
         
         return True
 
-    def get_all_utxos(self):
+    def get_all_utxos(self, testnet=False):
         all_utxos = []
         unspent_json = self.call('listunspent')
         for utxo in unspent_json:
@@ -111,11 +110,11 @@ class RpcSocket:
 
             raw_tx_hex = self.call('getrawtransaction', utxo['txid'])
             raw_tx_bytes = bytes.fromhex(raw_tx_hex)
-            tx = Tx.parse(BytesIO(raw_tx_bytes))
+            tx = Tx.parse(BytesIO(raw_tx_bytes), testnet)
             pubkey = tx.tx_outs[vout].script_pubkey
 
             tx_in = TxIn(prev_tx, vout)
-            tx_in.setPrevTxInfo(private_key, pubkey, utxo['amount'])
+            # tx_in.setPrevTxInfo(private_key, pubkey, utxo['amount'])
             all_utxos.append(tx_in)
 
         return all_utxos
@@ -123,7 +122,8 @@ class RpcSocket:
     def get_private_key(self, address):
         encoded_key = self.call('dumpprivkey', address)
         private_key = decode_address(encoded_key)
-        return private_key
+        secret_int = int(private_key,16)
+        return PrivateKey(secret_int)
 
     def lookup_transaction(self, txid):
         raw_tx = self.call('getrawtransaction', txid)
@@ -138,11 +138,15 @@ class RpcSocket:
             amount += float(utxo['amount'])
         return int(amount * 100000000)
 
-    def get_txout(self, amount, address=None):
+    def get_txout(self, amount: int, legacy: bool = False, address: str = None):
         if address == None:
-            address = self.call('getnewaddress', ['', 'legacy'])
-        target_h160 = decode_base58(address)
-        target_script = Script.p2pkh_script(target_h160)
+            address = self.get_new_address(legacy)
+            if legacy == False:
+                target_h160 = decode_bech32(address)
+                target_script = p2wpkh_script(target_h160)
+            else:
+                target_h160 = decode_base58(address)
+                target_script = p2pkh_script(target_h160)
         return TxOut(amount, target_script)
 
     def send_transaction(self, transaction):
@@ -150,5 +154,8 @@ class RpcSocket:
         self.call('sendrawtransaction', raw_tx)
         return transaction.id()
 
-    def get_new_address(self):
-        return self.call('getnewaddress', ['', 'legacy'])
+    def get_new_address(self, legacy=False):
+        if legacy==False:
+            return self.call('getnewaddress')
+        else:
+            return self.call('getnewaddress', ['', 'legacy'])
