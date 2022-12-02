@@ -1,0 +1,75 @@
+{% extends 'base.html' %}
+
+<script>
+       var min = '2022-12-02T00:00';
+       var max = '2023-06-02T00:00';
+
+       mobiscroll.datepicker('#demo-booking-multiple', {
+              controls: ['calendar'],
+              min: min,
+              max: max,
+              selectMultiple: true,
+              onInit: function (event, inst) {
+                     inst.setVal([
+                            '2022-12-11T00:00',
+                            '2022-12-16T00:00',
+                            '2022-12-17T00:00'
+                     ], true);
+              },
+              onPageLoading: function (event, inst) {
+                     getBookings(event.firstDay, function callback(bookings) {
+                            inst.setOptions({
+                                   labels: bookings.labels,
+                                   invalid: bookings.invalid
+                            });
+                     });
+              }
+       });
+
+       function getBookings(d, callback) {
+              var invalid = [],
+                     labels = [];
+
+              mobiscroll.util.http.getJson('//trial.mobiscroll.com/getbookings/?year=' + d.getFullYear() + '&month=' + d.getMonth(), function (bookings) {
+                     for (var i = 0; i < bookings.length; ++i) {
+                            var booking = bookings[i],
+                                   d = new Date(booking.d);
+
+                            if (booking.nr > 0) {
+                                   labels.push({
+                                          start: d,
+                                          title: booking.nr + ' SPOTS',
+                                          textColor: '#e1528f'
+                                   });
+                            } else {
+                                   invalid.push(d);
+                            }
+                     }
+                     callback({ labels: labels, invalid: invalid });
+              }, 'jsonp');
+       }
+</script>
+
+{% block content %}
+<h1>{% block title %} Book listing {% endblock %}</h1>
+
+<form method="post" action="/api/book">
+       <div id="demo-booking-multiple"></div>
+
+       <label for="start_date">Start Date</label>
+       <br>
+       <input type="text" name="start_date" placeholder="Start Date" value="{{ request.form['start_date'] }}"></input>
+       <br>
+
+       <label for="end_date">End Date</label>
+       <br>
+       <input type="text" name="end_date" placeholder="End Date" value="{{ request.form['end_date'] }}"></input>
+       <br>
+
+       <p>{{ listing['_id'] }}</p>
+
+       <input type="hidden" name="id" value="{{ listing['_id'] }}"></input>
+
+       <button type="submit">Submit</button>
+</form>
+{% endblock %}
