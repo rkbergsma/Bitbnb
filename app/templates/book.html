@@ -72,4 +72,13 @@
 
        <button type="submit">Submit</button>
 </form>
+
+<h3>Existing bookings for property:</h3>
+{% for booking in bookings %}
+<div class='message'>
+	<p>start date: {{ booking['start_date'] }}</p>
+	<p>end date: {{ booking['end_date'] }}</p>
+</div>
+{% endfor %}
+
 {% endblock %}

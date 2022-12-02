@@ -1,10 +1,12 @@
 from flask import Flask, render_template, request, url_for, flash, redirect
 
-import pymongo
+from database.dbconn import Dbconn as db
 from bson.objectid import ObjectId
+from tx_lib.Bitbnb import Wallet
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = '2fb00ba40abdb34f11c9026204333136a8afc9406e7e2f86'
+app.config.from_envvar('APP_SETTINGS')
+# app.config['SECRET_KEY'] = '2fb00ba40abdb34f11c9026204333136a8afc9406e7e2f86'
 
 messages = [{'title': 'Bitcoin AirBNB',
              'content': 'We are going to replace AirBNB with a better Bitcoin verison'},
@@ -13,31 +15,24 @@ messages = [{'title': 'Bitcoin AirBNB',
             ]
 
 if __name__ == "__main__":
+    print("wallet name:", app.config['WALLET_NAME'])
+    print("rpc user:", app.config['RPC_USER'])
+    print("rpc pw:", app.config['RPC_PW'])
+    print("rpc url:", app.config['RPC_URL'])
+    print("rpc port:", app.config['RPC_PORT'])
     app.run()
 
 @app.route('/api/all_listings', methods=(['GET']))
 def all_listings():
-    client = pymongo.MongoClient("mongodb://localhost:27017/")
-    db = client['test']
-    listings = db['listings']
-    all_listings = list(listings.find({}))
-    client.close()
+    all_listings = db.get_all_listings()
     return render_template('all_listings.html', listings = all_listings)
 
 @app.route('/api/listing', methods=(['GET']))
 def listing():
     id = request.args.get('id', '')
-    client = pymongo.MongoClient("mongodb://localhost:27017/")
-    db = client['test']
-    listings = db['listings']
-    listing = listings.find_one({'_id': ObjectId(id)})
-    
-    # TODO: get listing availability here
-    
-    client.close()
-    print("ID:", id)
-
-    return render_template('book.html', listing = listing)
+    listing = db.get_listing(id)
+    bookings_for_listing = db.get_bookings_for_listing(id)
+    return render_template('book.html', listing = listing, bookings = bookings_for_listing)
 
 @app.route('/api/book', methods=(['GET', 'POST']))
 def book():
@@ -49,11 +44,7 @@ def book():
         days = 2
         # TODO : actually calculate days for booking
 
-        # TODO: book here
-        client = pymongo.MongoClient("mongodb://localhost:27017/")
-        db = client['test']
-        listings = db['listings']
-        listing = listings.find_one({'_id': ObjectId(id)})
+        listing = db.get_listing(id)
 
         serial_script = gen_script(listing["btc_address"], 2408467)
         tx_id = book_listing(days * listing["rate"], serial_script)
@@ -67,19 +58,10 @@ def book():
             "user": "SuperTestNet"
         }
 
-        bookings = db['bookings']
-        this_booking = bookings.insert_one(booking)
-
-        client.close()
+        booking_id = db.new_booking(booking)
+        this_booking = db.get_booking(booking_id)
     else:
         pass
-    # client = pymongo.MongoClient("mongodb://localhost:27017/")
-    # db = client['test']
-    # listings = db['listings']
-    # listing = list(listings.find_one({'_id': ObjectId(id)}))[0]
-    # client.close()
-
-    # booking = {"start_date": start_date, "end_date": end_date, "tx_id": "tx_id here"}
     return render_template('success.html', booking = this_booking)
 
 def gen_script(owner_address, cancel_time):
