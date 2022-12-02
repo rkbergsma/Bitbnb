@@ -3,8 +3,8 @@ from Bitbnb.RedeemScript import RedeemScript
 from Bitbnb.Tx_Factory import Tx_Factory
 
 class Wallet:
-    def __init__(self, wallet_name: str):
-        self.rpc = RpcSocket({'wallet': wallet_name})
+    def __init__(self, wallet_name: str, username: str, password: str, url: str, port: int):
+        self.rpc = RpcSocket({'wallet': wallet_name, 'username': username, 'password': password, 'url': url, 'port': port})
 
     def book_reservation(self, total_rent_cost: int, serial_script: str):
         all_txins = self.rpc.get_all_utxos(testnet=True)                        # find list of utxos with sufficient funds

@@ -10,13 +10,13 @@ class RpcSocket:
     ''' Basic implementation of a JSON-RPC interface. '''
     def __init__(self, opt):
         #url  = opt.get('url', '127.0.0.1')
-        url = opt.get('url', '169.254.122.179')  # for running in wsl
+        url = opt.get('url', None)  # for running in wsl
         #port = opt.get('port', 18443)
-        port = opt.get('port', 18332)
+        port = opt.get('port', None)
 
         self.fullUrl  = f'http://{url}:{port}/'
-        self.username = opt.get('username', 'jag2k2')
-        self.password = opt.get('password', 'jeff1229')
+        self.username = opt.get('username', None)
+        self.password = opt.get('password', None)
         self.wallet   = opt.get('wallet', None)
         self.initFlag = False
 
