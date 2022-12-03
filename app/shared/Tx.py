@@ -2,7 +2,7 @@ from io import BytesIO
 from shared.PrivateKey import PrivateKey
 from shared.Utility import hash256, int_to_little_endian, little_endian_to_int, read_varint, encode_varint, h160_to_p2pkh_address, h160_to_p2wpkh_address
 from shared.Script import Script, p2pkh_script
-from Bitbnb.RedeemScript import RedeemScript
+from base.RedeemScript import RedeemScript
 
 SIGHASH_ALL = 1
 

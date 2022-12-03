@@ -61,13 +61,13 @@ class Dbconn(object):
         if self.connected():
             print("Already connected to database")
         try:
-            self.client = pymongo.MongoClient("mongodb://" + self.database + ":" + self.port + "/")
+            self.client = pymongo.MongoClient("mongodb://" + self.database + ":" + str(self.port) + "/")
             self.db = self.client.test
             self.listings = self.db.listings
             self.bookings = self.db.bookings
             self._connected = True
             print("Successfully connected to database")
-        except pymongo.errors.ConnectionError as e:
+        except pymongo.errors.ConnectionFailure as e:
             raise Exception("Error connecting to database")
     
     def close(self):
@@ -79,6 +79,7 @@ class Dbconn(object):
         finally:
             self._connected = None
 
+    # Listings:
     @_check_connected
     def get_listing(self, listing_id):
         if isinstance(listing_id, str):
@@ -90,16 +91,30 @@ class Dbconn(object):
         return list(self.listings.find({}))
 
     @_check_connected
+    def get_user_listings(self, user_email):
+        return list(self.listings.find({'email': user_email}))
+    
+    @_check_connected
+    def new_listing(self, listing):
+        result = self.listings.insert_one(listing)
+        return result.inserted_id
+
+    # Bookings:
+    @_check_connected
     def get_bookings_for_listing(self, listing_id):
         if isinstance(listing_id, str):
             listing_id = ObjectId(listing_id)
-        return list(self.bookings.find({'_id': listing_id}))
+        return list(self.bookings.find({'listing_id': listing_id}))
 
     @_check_connected
     def get_booking(self, booking_id):
         if isinstance(booking_id, str):
             booking_id = ObjectId(booking_id)
         return self.bookings.find_one({'_id': booking_id})
+
+    @_check_connected
+    def get_user_bookings(self, user_email):
+        return list(self.bookings.find({'email': user_email}))
 
     @_check_connected
     def new_booking(self, booking):

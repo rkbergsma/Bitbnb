@@ -53,20 +53,22 @@
 {% block content %}
 <h1>{% block title %} Book listing {% endblock %}</h1>
 
+<p>{{ listing['_id'] }}</p>
+<p>{{ listing['property_address'] }}</p>
+<p>{{ listing['description'] }}</p>
+
 <form method="post" action="/api/book">
        <div id="demo-booking-multiple"></div>
 
        <label for="start_date">Start Date</label>
        <br>
-       <input type="text" name="start_date" placeholder="Start Date" value="{{ request.form['start_date'] }}"></input>
+       <input type="text" name="start_date" placeholder="Start Date" value="{{ request.form['start_date'] }}" required></input>
        <br>
 
        <label for="end_date">End Date</label>
        <br>
-       <input type="text" name="end_date" placeholder="End Date" value="{{ request.form['end_date'] }}"></input>
+       <input type="text" name="end_date" placeholder="End Date" value="{{ request.form['end_date'] }}" required></input>
        <br>
-
-       <p>{{ listing['_id'] }}</p>
 
        <input type="hidden" name="id" value="{{ listing['_id'] }}"></input>
 

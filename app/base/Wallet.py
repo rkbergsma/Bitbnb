@@ -1,6 +1,6 @@
 from lib.rpc import RpcSocket
-from Bitbnb.RedeemScript import RedeemScript
-from Bitbnb.Tx_Factory import Tx_Factory
+from base.RedeemScript import RedeemScript
+from base.Tx_Factory import Tx_Factory
 
 class Wallet:
     def __init__(self, wallet_name: str, username: str, password: str, url: str, port: int):

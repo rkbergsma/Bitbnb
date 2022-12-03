@@ -1,6 +1,6 @@
 from shared.Tx import Tx, TxOut, TxIn
 from shared.Script import p2wsh_script
-from Bitbnb import RedeemScript
+from base import RedeemScript
 from typing import List
 
 class Tx_Factory:
