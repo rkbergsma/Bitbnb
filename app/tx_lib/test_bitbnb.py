@@ -1,5 +1,5 @@
 
-from Bitbnb.RedeemScript import RedeemScript
+from base.RedeemScript import RedeemScript
   
 refund_addr = 'moZvNSDyo9HuLemFHdKvW9d5rTRt2QXMUy'
 owner_addr = 'mvNR1qGaMR7jdmSsvFQf6nsXo7bb1ofn2M'

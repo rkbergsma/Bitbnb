@@ -1,0 +1,13 @@
+{% extends 'base.html' %}
+
+{% block content %}
+    <h1>{% block title %} Success! {% endblock %}</h1>
+    <p>Your listing has been added! Details below:</p>
+
+    <div class='message'>
+        <p>Property Address: {{ listing['property_address'] }}</p>
+        <p>Description: {{ listing['property_description'] }}</p>
+        <p>Rate: {{ listing['rate'] }}</p>
+    </div>
+
+{% endblock %}

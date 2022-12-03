@@ -1,0 +1,13 @@
+{% extends 'base.html' %}
+
+{% block content %}
+    <h1>{% block title %} Reservations: {% endblock %}</h1>
+    {% for booking in bookings %}
+    <div class='message'>
+        <p>Property: {{ booking['listing_id'] }}</p>
+        <p>start date: {{ booking['start_date'] }}</p>
+        <p>end date: {{ booking['end_date'] }}</p>
+    </div>
+    {% endfor %}
+
+{% endblock %}

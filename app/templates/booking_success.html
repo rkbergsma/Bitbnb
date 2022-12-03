@@ -1,0 +1,13 @@
+{% extends 'base.html' %}
+
+{% block content %}
+    <h1>{% block title %} Success! {% endblock %}</h1>
+    <p>Your booking has been confirmed! Details below:</p>
+
+    <div class='message'>
+        <p>{{ booking['start_date'] }}</p>
+        <p>{{ booking['end_date'] }}</p>
+        <p>{{ booking['tx_id'] }}</p>
+    </div>
+
+{% endblock %}

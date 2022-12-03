@@ -1,0 +1,14 @@
+{% extends 'base.html' %}
+
+{% block content %}
+    <h1>{% block title %} Listings: {% endblock %}</h1>
+    {% for listing in listings %}
+        <div class='message'>
+            <h3>{{ listing['description'] }}</h3>
+            <p>{{ listing['rate'] }}</p>
+            <form action="/api/listing">
+                <button type="submit" name="id" value="{{ listing['_id'] }}" >View Listing</button>
+            </form>
+        </div>
+    {% endfor %}
+{% endblock %}
