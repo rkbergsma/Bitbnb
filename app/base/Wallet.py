@@ -6,6 +6,12 @@ class Wallet:
     def __init__(self, wallet_name: str, username: str, password: str, url: str, port: int):
         self.rpc = RpcSocket({'wallet': wallet_name, 'username': username, 'password': password, 'url': url, 'port': port})
 
+    def make_redeem_script(self, owner_address: str, cancel_by_time: int):
+        renter_address = self.rpc.get_new_address()
+        redeem_script = RedeemScript.make_from_args(renter_address, owner_address, cancel_by_time)
+        return redeem_script
+
+
     def book_reservation(self, total_rent_cost: int, serial_script: str):
         all_txins = self.rpc.get_all_utxos(testnet=True)                        # find list of utxos with sufficient funds
         all_amount = self.rpc.get_total_unspent_sats()                          # get total amount in those utxos

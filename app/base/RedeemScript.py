@@ -1,6 +1,6 @@
 from io import BytesIO
 from shared.Script import Script
-from shared.Utility import h160_to_p2pkh_address, decode_base58, encode_varint, sha256, hash160
+from shared.Utility import h160_to_p2wpkh_address, decode_base58, encode_varint, sha256, hash160, decode_bech32
 from shared.Op import encode_num, decode_num
 
 class RedeemScript:
@@ -8,9 +8,13 @@ class RedeemScript:
         self.redeem_script = redeem_script
 
     @classmethod        
-    def make_from_args(cls, refund_address: str, owner_address: str, cancel_time: int):
-        refund_h160 = decode_base58(refund_address)
-        owner_h160 = decode_base58(owner_address)
+    def make_from_args(cls, refund_address: str, owner_address: str, cancel_time: int, legacy = False):
+        if legacy == False:
+            refund_h160 = decode_bech32(refund_address)
+            owner_h160 = decode_bech32(owner_address)
+        else:
+            refund_h160 = decode_base58(refund_address)
+            owner_h160 = decode_base58(owner_address)
         encoded_cancel_time = encode_num(cancel_time)
 
         redeem_script = Script([
@@ -43,11 +47,11 @@ class RedeemScript:
 
     def get_refund_address(self, testnet=False) -> str:
         refund_h160 = self.redeem_script.cmds[2]
-        return h160_to_p2pkh_address(refund_h160, testnet)
+        return h160_to_p2wpkh_address(refund_h160, testnet)
 
     def get_owner_address(self, testnet=False) -> str:
         owner_h160 = self.redeem_script.cmds[12]
-        return h160_to_p2pkh_address(owner_h160, testnet)
+        return h160_to_p2wpkh_address(owner_h160, testnet)
 
     def get_owner_locktime(self) -> str:
         encoded_locktime = self.redeem_script.cmds[7]

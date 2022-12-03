@@ -7,5 +7,5 @@ if __name__ == '__main__':
 
     # from renter's wallet
     wallet = Wallet('alice_wallet', 'jag2k2', 'jeff1229', '169.254.122.179', 18332)
-    tx_id = wallet.book_reservation(total_rent_cost, serial_script)
-    print(tx_id)
+    # tx_id = wallet.book_reservation(total_rent_cost, serial_script)
+    # print(tx_id)
