@@ -1,0 +1,14 @@
+{% extends 'base.html' %}
+
+{% block content %}
+    <h1>{% block title %} Success! {% endblock %}</h1>
+    <p>Payment for this booking has been canceled and refunded! Details below:</p>
+
+    <div class='message'>
+    	<p>booking id: {{ booking['_id'] }}</p>
+        <p>{{ booking['start_date'] }}</p>
+        <p>{{ booking['end_date'] }}</p>
+        <p>{{ booking['tx_id'] }}</p>
+    </div>
+
+{% endblock %}

@@ -5,7 +5,7 @@ from bson.objectid import ObjectId
 from base import Wallet
 from datetime import datetime, timedelta
 from dateutil import parser as dparser
-
+import calendar
 
 app = Flask(__name__)
 app.config.from_envvar('APP_SETTINGS')
@@ -15,8 +15,6 @@ print("rpc pw:", app.config['RPC_PW'])
 print("rpc url:", app.config['RPC_URL'])
 print("rpc port:", app.config['RPC_PORT'])
 print("user email:", app.config['EMAIL'])
-filename = 'bitbnb_pag_logo_1.png'
-applogo = 'http://127.0.0.1:5000/resources/' + filename
 
 messages = [{'title': 'Bitcoin AirBNB',
              'content': 'We are going to replace AirBNB with a better Bitcoin verison.\nUse the top menu to navigate'},
@@ -90,22 +88,25 @@ def redeem():
             # print(url)
             # return redirect(url)
         
-
-            
-
 @app.route('/api/book', methods=(['POST']))
 def book():
     if request.method == 'POST':
         id = request.form['id'] #listing id
-        start_date = request.form['start_date']
-        end_date = request.form['end_date']
-        # days = end_date - start_date
-        days = 2
-        # TODO : actually calculate days for booking
         db = Dbconn()
         listing = db.get_listing(id)
+        bookings_for_listing = db.get_bookings_for_listing(id)
+        try:
+            start_date = dparser.parse(request.form['start_date'])
+            end_date = dparser.parse(request.form['end_date']) + timedelta(hours=12)
+        except ValueError as e:
+            flash("Invalid date format!")
+            return render_template('book.html', listing = listing, bookings = bookings_for_listing)
+        td = end_date - start_date
+        days = td.days
+        epoch_time = calendar.timegm(end_date.timetuple())
+        listing = db.get_listing(id)
 
-        serial_script = gen_script(listing["btc_address"], 2408467)
+        serial_script = gen_script(listing["btc_address"], epoch_time)
         tx_id = book_listing(days * listing["rate"], serial_script)
 
         booking = {
@@ -130,6 +131,18 @@ def gen_script(owner_address, cancel_time):
 def book_listing(total_cost, cancel_time):
     print("Would book the listing here")
     return "b00kedl1stingTxId"
+
+@app.route('/api/cancel', methods=(['POST']))
+def cancel():
+    if request.method == 'POST':
+        booking_id = request.form['booking_id']
+        db = Dbconn()
+        this_booking = db.get_booking(booking_id)
+        db.close()
+
+        # TODO: Refund this TX if possible
+
+        return render_template('cancel_refund.html', booking = this_booking)
 
 @app.route('/api/listings', methods=(['GET']))
 def listings():
@@ -178,6 +191,6 @@ def new():
 
 @app.route('/', methods=(['GET', 'POST']))
 def index():
-    return render_template('index.html', messages=messages, logo = applogo)
+    return render_template('index.html', messages=messages)
 
 

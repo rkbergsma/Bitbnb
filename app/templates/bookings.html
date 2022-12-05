@@ -7,6 +7,12 @@
         <p>Property: {{ booking['listing_id'] }}</p>
         <p>start date: {{ booking['start_date'] }}</p>
         <p>end date: {{ booking['end_date'] }}</p>
+       <form method = "post" action="/api/cancel">
+              <input type="hidden" name="start_date" value="{{ booking['start_date'] }}"></input>
+              <input type="hidden" name="end_date" value="{{ booking['end_date'] }}"></input>
+              <button type="submit" name="booking_id" value="{{ booking['_id'] }}" >Cancel</button>
+       </form>
+
     </div>
     {% endfor %}
 
