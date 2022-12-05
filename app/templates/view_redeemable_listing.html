@@ -67,7 +67,7 @@
        <form method = "post" action="/api/redeem">
               <input type="hidden" name="start_date" value="{{ booking['start_date'] }}"></input>
               <input type="hidden" name="listing_id" value="{{ listing['_id'] }}"></input>
-              <button type="submit" name="booking_id" value="{{ booking['_id'] }}" >Redeem</button>
+              <button type="submit" name="booking_id" value="{{ booking['_id'] }}" >Finalize</button>
        </form>
 </div>
 {% endfor %}
