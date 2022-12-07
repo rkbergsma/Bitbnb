@@ -2,9 +2,11 @@ from flask import Flask, render_template, request, url_for, flash, redirect
 
 from database.dbconn import Dbconn
 from bson.objectid import ObjectId
-from base import Wallet
+from base.Wallet import Wallet
+from base.RedeemScript import RedeemScript
 from datetime import datetime, timedelta
 from dateutil import parser as dparser
+from lib.rpc import RpcSocket
 import calendar
 
 app = Flask(__name__)
@@ -40,7 +42,6 @@ def listing():
     db.close()
     return render_template('book.html', listing = listing, bookings = bookings_for_listing)
 
-
 @app.route('/api/redeemable_listing', methods=(['GET']))
 def redeemable_listing():
     print("***CALLING REDEEMABLE LISTING***")
@@ -64,30 +65,62 @@ def redeem():
         bookings_for_listing = db.get_bookings_for_listing(listing_id)
         db.close()
 
-        start_date = dparser.parse(request.form['start_date'])
-        current_date = datetime.now()
-        difference = start_date - current_date
-
-        # return render_template('booking_redeemed.html', booking = this_booking)
-
-        if difference <= timedelta(days=7): #is this redeemable yet?
-            print("DIFFERENCE IS: ")
-            print(difference)
-            #TODO: actually redeem the script
-            return render_template('booking_redeemed.html', booking = this_booking)
-        else:
-            print("ELSE STATEMENT. DIFFERENCE IS: ")
-            print(difference)
+        redeem_script = RedeemScript.make_from_serial(this_booking['serial_script'])
+        epoch_locktime = datetime.fromtimestamp(int(redeem_script.get_owner_locktime()))
+        if (datetime.now() - epoch_locktime) < 0:
+            flash("Locktime has not expired yet!")
             return render_template('view_redeemable_listing.html', listing = this_listing, bookings = bookings_for_listing)
-
-            # return redirect(url_for('listings'))
-            # print("ELSE STATEMENT. DIFFERENCE IS: ")
-            # print(difference)
-            # url = url_for('redeemable_listing', listing = this_listing, bookings = bookings_for_listing)
-            # print("URL IS: ")
-            # print(url)
-            # return redirect(url)
         
+        try:
+            wallet = Wallet(app.config['WALLET_NAME'], app.config['RPC_USER'], app.config['RPC_PW'], app.config['RPC_URL'], app.config['RPC_PORT'])
+            finalized_tx = wallet.finalize_reservation(this_booking['tx_id'], this_booking['serial_script'])
+            print(finalized_tx)
+            finalized_confirmation = {
+                "start_date": this_booking['start_date'],
+                "end_date": this_booking['end_date'],
+                "tx_id": finalized_tx,
+                "_id": this_booking['_id']
+            }
+            return render_template('booking_redeemed.html', booking = finalized_confirmation)
+        except Exception as e:
+            flash(str(e))
+            print(e)
+            return render_template('view_redeemable_listing.html', listing = this_listing, bookings = bookings_for_listing)
+        
+        # start_date = dparser.parse(request.form['start_date'])
+        # current_date = datetime.now()
+        # difference = start_date - current_date
+        # # return render_template('booking_redeemed.html', booking = this_booking)
+
+        # if difference <= timedelta(days=7): #is this redeemable yet?
+        #     print("DIFFERENCE IS: ")
+        #     print(difference)
+        #     #TODO: actually redeem the script
+        #     return render_template('booking_redeemed.html', booking = this_booking)
+        # else:
+        #     print("ELSE STATEMENT. DIFFERENCE IS: ")
+        #     print(difference)
+        #     return render_template('view_redeemable_listing.html', listing = this_listing, bookings = bookings_for_listing)
+
+        #     # return redirect(url_for('listings'))
+        #     # print("ELSE STATEMENT. DIFFERENCE IS: ")
+        #     # print(difference)
+        #     # url = url_for('redeemable_listing', listing = this_listing, bookings = bookings_for_listing)
+        #     # print("URL IS: ")
+        #     # print(url)
+        #     # return redirect(url)
+
+class BookingDateError(Exception):
+    """Exception raised for errors in the booking date.
+
+    Attributes:
+        message -- explanation of the error
+    """
+
+    def __init__(self, message="Invalid booking date"):
+        self.message = message
+        super().__init__(self.message)
+
 @app.route('/api/book', methods=(['POST']))
 def book():
     if request.method == 'POST':
@@ -98,16 +131,37 @@ def book():
         try:
             start_date = dparser.parse(request.form['start_date'])
             end_date = dparser.parse(request.form['end_date']) + timedelta(hours=12)
+            if end_date < start_date:
+                raise BookingDateError("End date before start date!")
+            for booking in bookings_for_listing:
+                if start_date > booking['start_date'] and start_date < booking['end_date']:
+                    raise BookingDateError("Booking already reserved at this time.")
+                if end_date > booking['start_date'] and end_date < booking['end_date']:
+                    raise BookingDateError("Booking already reserved at this time.")
         except ValueError as e:
             flash("Invalid date format!")
             return render_template('book.html', listing = listing, bookings = bookings_for_listing)
+        except BookingDateError as e:
+            flash(str(e))
+            return render_template('book.html', listing = listing, bookings = bookings_for_listing)
         td = end_date - start_date
         days = td.days
-        epoch_time = calendar.timegm(end_date.timetuple())
+        cancel_epoch_date = start_date - timedelta(days = listing['cancel_days'])
+        epoch_time = calendar.timegm(cancel_epoch_date.timetuple())
         listing = db.get_listing(id)
+        booking_amount = int(days * int(listing['rate']))
 
-        serial_script = gen_script(listing["btc_address"], epoch_time)
-        tx_id = book_listing(days * listing["rate"], serial_script)
+        try:
+            wallet = Wallet(app.config['WALLET_NAME'], app.config['RPC_USER'], app.config['RPC_PW'], app.config['RPC_URL'], app.config['RPC_PORT'])
+            serial_script = wallet.make_redeem_script(listing["btc_address"], epoch_time)
+            serial_script = serial_script.serialize()
+            print("Serial script:", serial_script)
+            tx_id = wallet.book_reservation(booking_amount, serial_script)
+            print("TX ID:", tx_id)
+        except Exception as e:
+            print(e)
+            flash(str(e))
+            return render_template('booking_success.html', booking = this_booking)
 
         booking = {
             "start_date": start_date,
@@ -141,8 +195,23 @@ def cancel():
         db.close()
 
         # TODO: Refund this TX if possible
-
-        return render_template('cancel_refund.html', booking = this_booking)
+        try:
+            wallet = Wallet(app.config['WALLET_NAME'], app.config['RPC_USER'], app.config['RPC_PW'], app.config['RPC_URL'], app.config['RPC_PORT'])
+            cancel_tx = wallet.cancel_reservation(this_booking['tx_id'], this_booking['serial_script'])
+            print("Cancel tx id:", cancel_tx)
+            cancel_confirmation = {
+                "start_date": this_booking['start_date'],
+                "end_date": this_booking['end_date'],
+                "tx_id": cancel_tx,
+                "_id": this_booking['_id']
+            }
+            return render_template('cancel_refund.html', booking = cancel_confirmation)
+        except Exception as e:
+            flash(str(e))
+            db = Dbconn()
+            bookings = db.get_user_bookings(app.config['EMAIL'])
+            db.close()  
+            return render_template('bookings.html', bookings = bookings)
 
 @app.route('/api/listings', methods=(['GET']))
 def listings():
@@ -167,16 +236,30 @@ def new():
     # TODO: update to make form for adding a new listing
     if request.method == 'POST':
         print("IN POST OF NEW!")
-        print("btc_address", request.form['btc_address'])
+        try:
+            rpc = RpcSocket({'wallet': app.config['WALLET_NAME'], 'username': app.config['RPC_USER'], 
+            'password': app.config['RPC_PW'], 'url': app.config['RPC_URL'], 'port': app.config['RPC_PORT']})
+            btc_address = rpc.get_new_address()
+        except Exception as e:
+            print(e)
+            flash(str(e))
+            return render_template('create.html')
+        try:
+            cancel_days = int(request.form['cancel_days'])
+        except ValueError as e:
+            cancel_days = 7
+        print("btc_address", btc_address)
         print("description", request.form['description'])
         print("property_address", request.form['property_address'])
         print("rate", request.form['rate'])
+        print("cancel days", cancel_days)
         listing = {
-            "btc_address": request.form['btc_address'],
+            "btc_address": btc_address,
             "description": request.form['description'],
             "property_address": request.form['property_address'],
             "rate": request.form['rate'],
-            "email": app.config['EMAIL']
+            "email": app.config['EMAIL'],
+            "cancel_days": cancel_days
         }
         
         print("Making new listing:", listing)
