@@ -67,7 +67,7 @@ def redeem():
 
         redeem_script = RedeemScript.make_from_serial(this_booking['serial_script'])
         epoch_locktime = datetime.fromtimestamp(int(redeem_script.get_owner_locktime()))
-        if (datetime.now() - epoch_locktime) < 0:
+        if datetime.now() < epoch_locktime:
             flash("Locktime has not expired yet!")
             return render_template('view_redeemable_listing.html', listing = this_listing, bookings = bookings_for_listing)
         
@@ -83,7 +83,7 @@ def redeem():
             }
             return render_template('booking_redeemed.html', booking = finalized_confirmation)
         except Exception as e:
-            flash(str(e))
+            flash("Transaction failed due to lock time: " + str(e))
             print(e)
             return render_template('view_redeemable_listing.html', listing = this_listing, bookings = bookings_for_listing)
         
