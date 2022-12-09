@@ -1,36 +1,31 @@
 {% extends 'base.html' %}
 
 {% block content %}
-    <h1>{% block title %} Post a new listing {% endblock %}</h1>
-    <form method="post" action="/api/new">
-        <label for="btc_address">Bitcoin Receive Address</label>
-        <br>
-        <input type="text" name="btc_address"
-               placeholder="Host bech32 segwit bitcoin address"
-               value="{{ request.form['btc_address'] }}" required></input>
-        <br>
+<h1>{% block title %} Post a new listing {% endblock %}</h1>
+<form method="post" action="/api/new">
+       <label for="property_address">Property Address</label>
+       <br>
+       <input type="text" name="property_address" placeholder="123 W Main Street"
+              value="{{ request.form['property_address'] }}" required></input>
+       <br>
 
-        <label for="property_address">Property Address</label>
-        <br>
-        <input type="text" name="property_address"
-               placeholder="123 W Main Street"
-               value="{{ request.form['property_address'] }}" required></input>
-        <br>
+       <label for="description">Description</label>
+       <br>
+       <input type="text" name="description" placeholder="Charming 2 bed, 3 bath bungalo"
+              value="{{ request.form['description'] }}" required></input>
+       <br>
 
-        <label for="description">Description</label>
-        <br>
-        <input type="text" name="description"
-               placeholder="Charming 2 bed, 3 bath bungalo"
-               value="{{ request.form['description'] }}" required></input>
-        <br>
+       <label for="rate">Rate (sats per night)</label>
+       <br>
+       <input type="text" name="rate" placeholder="20000" value="{{ request.form['rate'] }}" required></input>
+       <br>
 
-        <label for="rate">Rate (sats per night)</label>
-        <br>
-        <input type="text" name="rate"
-               placeholder="20000"
-               value="{{ request.form['rate'] }}" required></input>
-        <br>
+       <label for="cancel_days">Cancelation Policy (Days Before Booking)</label>
+       <br>
+       <input type="text" name="cancel_days" placeholder="7"
+              value="{{ request.form['cancel_days'] }}" required></input>
+       <br>
 
-        <button type="submit">Submit</button>
-    </form>
+       <button type="submit">Submit</button>
+</form>
 {% endblock %}
