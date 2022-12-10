@@ -26,9 +26,8 @@ Once details are filled, save the file and export an environment variable called
 
 5. After the database and config files are set up, run the Flask app. This can be as simple as `flask run` if you have `pymongo` and `Flask` installed, or utilize a venv.
 6. Visit localhost:5000 in the browser to view the home page and click through the app.
-
-## User Workflow for Owner and Renter
 The user workflow for both the owner and the renter is defined in the flow chart below. 
+
 ```
 
   |------------------------|    |---------------------------|    |-----------------------------------|
@@ -49,6 +48,7 @@ The user workflow for both the owner and the renter is defined in the flow chart
   |------------------------|
   
 ```
+
 Within the app, this can be achieved by using 2 different `config.py` files. One config file can be Alice and the other can be Bob. The above workflow can be achieved by the following steps.  
 To run as Alice:  
 ```
