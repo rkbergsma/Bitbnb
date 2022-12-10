@@ -61,8 +61,8 @@ class Dbconn(object):
         if self.connected():
             print("Already connected to database")
         try:
-            # self.client = pymongo.MongoClient("mongodb://" + self.database + ":" + str(self.port) + "/")
-            self.client = pymongo.MongoClient("mongodb://4.tcp.ngrok.io:12267")
+            self.client = pymongo.MongoClient("mongodb://" + self.database + ":" + str(self.port) + "/")
+            # self.client = pymongo.MongoClient("mongodb://6.tcp.ngrok.io:12114")
             self.db = self.client.test
             self.listings = self.db.listings
             self.bookings = self.db.bookings
